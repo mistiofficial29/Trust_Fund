@@ -1,9 +1,12 @@
 import { BadgeCheck, FileSearch, HeartHandshake, ShieldCheck, Sparkles, Wallet } from "lucide-react";
 import Link from "next/link";
 
+import { CampaignCard } from "@/components/campaign/campaign-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { db } from "@/lib/db";
+import { formatInr } from "@/lib/format";
 import { site } from "@/lib/site";
 
 const steps = [
@@ -42,13 +45,19 @@ const reasons = [
   },
 ];
 
-const placeholderCampaigns = [
-  { title: "Flood Relief for Families in Sangli", ngo: "Jalsetu Relief Foundation", raised: "₹72,500", goal: "₹1,00,000" },
-  { title: "Books & Digital Classrooms for 5 Rural Schools", ngo: "Shiksha Deep Society", raised: "₹1,80,000", goal: "₹2,50,000" },
-  { title: "Free Health Camp & Medicines for Tribal Hamlets", ngo: "Arogya Seva Trust", raised: "₹1,50,000", goal: "₹1,50,000" },
-];
+export default async function HomePage() {
+  const [raised, campaigns, verifiedNgos, featured] = await Promise.all([
+    db.donation.aggregate({ _sum: { amountInr: true } }),
+    db.campaign.count({ where: { status: { in: ["ACTIVE", "COMPLETED"] } } }),
+    db.ngoProfile.count({ where: { verificationStatus: "VERIFIED" } }),
+    db.campaign.findMany({
+      where: { status: { in: ["ACTIVE", "COMPLETED"] } },
+      include: { ngo: true },
+      orderBy: { raisedInr: "desc" },
+      take: 3,
+    }),
+  ]);
 
-export default function HomePage() {
   return (
     <div>
       <section className="border-b bg-gradient-to-b from-secondary/70 to-background">
@@ -79,18 +88,15 @@ export default function HomePage() {
             </CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-3">
               {[
-                { label: "Raised so far", value: "—" },
-                { label: "Campaigns", value: "—" },
-                { label: "Verified NGOs", value: "—" },
+                { label: "Raised so far", value: formatInr(raised._sum.amountInr ?? 0) },
+                { label: "Campaigns", value: String(campaigns) },
+                { label: "Verified NGOs", value: String(verifiedNgos) },
               ].map((stat) => (
                 <div key={stat.label} className="rounded-xl bg-muted/70 p-4">
                   <p className="text-2xl font-semibold">{stat.value}</p>
                   <p className="mt-1 text-xs text-muted-foreground">{stat.label}</p>
                 </div>
               ))}
-              <p className="sm:col-span-3 text-xs text-muted-foreground">
-                Live totals arrive in Phase 2, once demo data is loaded.
-              </p>
             </CardContent>
           </Card>
         </div>
@@ -123,32 +129,25 @@ export default function HomePage() {
           <div className="flex items-end justify-between gap-4">
             <div>
               <h2 className="text-2xl font-semibold tracking-tight">Featured campaigns</h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Preview of the demo stories. Full listings land with seed data in Phase 2.
-              </p>
+              <p className="mt-2 text-sm text-muted-foreground">Demo stories with fictional organisations.</p>
             </div>
             <Button variant="ghost" asChild className="hidden sm:inline-flex">
               <Link href="/campaigns">View all</Link>
             </Button>
           </div>
           <div className="mt-8 grid gap-6 md:grid-cols-3">
-            {placeholderCampaigns.map((campaign) => (
-              <Card key={campaign.title} className="overflow-hidden">
-                <div className="h-36 bg-gradient-to-br from-primary/80 to-primary/40" aria-hidden />
-                <CardHeader>
-                  <CardTitle className="text-base leading-snug">{campaign.title}</CardTitle>
-                  <CardDescription>{campaign.ngo}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-2 overflow-hidden rounded-full bg-secondary">
-                    <div className="h-full w-2/3 rounded-full bg-primary" />
-                  </div>
-                  <p className="mt-3 text-sm">
-                    {campaign.raised}{" "}
-                    <span className="text-muted-foreground">of {campaign.goal}</span>
-                  </p>
-                </CardContent>
-              </Card>
+            {featured.map((campaign) => (
+              <CampaignCard
+                key={campaign.id}
+                id={campaign.id}
+                title={campaign.title}
+                ngoName={campaign.ngo.legalName}
+                verified={campaign.ngo.verificationStatus === "VERIFIED"}
+                coverPath={campaign.coverPath}
+                raisedInr={campaign.raisedInr}
+                goalInr={campaign.goalInr}
+                endDate={campaign.endDate}
+              />
             ))}
           </div>
         </div>

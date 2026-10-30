@@ -1,18 +1,11 @@
-import { LayoutDashboard } from "lucide-react";
-import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
-import { ComingSoon } from "@/components/coming-soon";
+import { getSession } from "@/lib/session";
 
-export const metadata: Metadata = {
-  title: "Dashboard",
-};
-
-export default function DashboardPage() {
-  return (
-    <ComingSoon
-      icon={LayoutDashboard}
-      title="Dashboards come later"
-      description="Donor, NGO and admin dashboards will live under /dashboard once accounts exist."
-    />
-  );
+export default async function DashboardIndex() {
+  const session = await getSession();
+  if (!session?.user) redirect("/login");
+  if (session.user.role === "ADMIN") redirect("/dashboard/admin");
+  if (session.user.role === "NGO") redirect("/dashboard/ngo");
+  redirect("/dashboard/donor");
 }

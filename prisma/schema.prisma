@@ -1,0 +1,186 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String      @id @default(cuid())
+  email         String      @unique
+  passwordHash  String
+  name          String
+  role          String
+  walletAddress String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  ngoProfile    NgoProfile?
+  donations     Donation[]
+  auditLogs     AuditLog[]  @relation("ActorLogs")
+  reviewedFlags FraudFlag[] @relation("FlagReviewer")
+}
+
+model NgoProfile {
+  id                 String     @id @default(cuid())
+  userId             String     @unique
+  user               User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  legalName          String
+  registrationType   String
+  registrationNumber String
+  yearEstablished    Int
+  city               String
+  state              String
+  website            String?
+  contactPerson      String
+  phone              String
+  email              String
+  govtAffiliated     Boolean    @default(false)
+  govtDepartment     String?
+  affiliationCertNo  String?
+  parentOrg          String?
+  verificationStatus String     @default("PENDING")
+  adminRemarks       String?
+  walletAddress      String?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+  campaigns          Campaign[]
+}
+
+model Document {
+  id           String   @id @default(cuid())
+  ownerType    String
+  ownerId      String
+  type         String
+  fileUrl      String
+  sha256       String
+  mimeType     String
+  originalName String
+  status       String   @default("PENDING")
+  createdAt    DateTime @default(now())
+
+  @@index([ownerId])
+  @@index([sha256])
+}
+
+model Campaign {
+  id            String         @id @default(cuid())
+  ngoId         String
+  ngo           NgoProfile     @relation(fields: [ngoId], references: [id], onDelete: Cascade)
+  title         String
+  summary       String
+  story         String
+  category      String
+  state         String
+  district      String
+  area          String
+  goalInr       Int
+  raisedInr     Int            @default(0)
+  status        String         @default("DRAFT")
+  startDate     DateTime
+  endDate       DateTime
+  beneficiaries Int
+  onchainId     String         @unique
+  coverPath     String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  budgetItems   BudgetItem[]
+  donations     Donation[]
+  expenses      Expense[]
+  updates       CampaignUpdate[]
+
+  @@index([status])
+  @@index([category])
+}
+
+model BudgetItem {
+  id         String    @id @default(cuid())
+  campaignId String
+  campaign   Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  category   String
+  amountInr  Int
+  expenses   Expense[]
+}
+
+model Donation {
+  id          String    @id @default(cuid())
+  campaignId  String
+  campaign    Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  donorId     String?
+  donor       User?     @relation(fields: [donorId], references: [id], onDelete: SetNull)
+  anonymous   Boolean   @default(false)
+  donorName   String?
+  amountInr   Int
+  amountWei   String
+  txHash      String
+  blockNumber Int?
+  message     String?
+  wallet      String
+  createdAt   DateTime  @default(now())
+
+  @@index([campaignId])
+  @@index([txHash])
+  @@index([donorId])
+}
+
+model Expense {
+  id           String      @id @default(cuid())
+  campaignId   String
+  campaign     Campaign    @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  budgetItemId String
+  budgetItem   BudgetItem  @relation(fields: [budgetItemId], references: [id])
+  vendor       String
+  invoiceNo    String?
+  amountInr    Int
+  description  String
+  quantity     String?
+  billDate     DateTime
+  billDocId    String?
+  photoDocId   String?
+  txHash       String?
+  billHash     String
+  createdAt    DateTime    @default(now())
+  flags        FraudFlag[]
+
+  @@index([campaignId])
+  @@index([billHash])
+}
+
+model FraudFlag {
+  id          String   @id @default(cuid())
+  expenseId   String
+  expense     Expense  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  ruleId      String
+  severity    String
+  reason      String
+  status      String   @default("OPEN")
+  notes       String?
+  reviewedById String?
+  reviewedBy  User?    @relation("FlagReviewer", fields: [reviewedById], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@index([status])
+}
+
+model CampaignUpdate {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  title      String
+  body       String
+  createdAt  DateTime @default(now())
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actor      User?    @relation("ActorLogs", fields: [actorId], references: [id])
+  action     String
+  entityType String
+  entityId   String
+  meta       String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityId])
+}

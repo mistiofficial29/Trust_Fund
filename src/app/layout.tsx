@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 
 import { SiteShell } from "@/components/layout/site-shell";
+import { AuthSessionProvider } from "@/components/providers/session-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Toaster } from "sonner";
 import { site } from "@/lib/site";
 
 import "./globals.css";
@@ -31,9 +33,12 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} font-sans`}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
-          <TooltipProvider delayDuration={200}>
-            <SiteShell>{children}</SiteShell>
-          </TooltipProvider>
+          <AuthSessionProvider>
+            <TooltipProvider delayDuration={200}>
+              <SiteShell>{children}</SiteShell>
+              <Toaster richColors position="top-right" />
+            </TooltipProvider>
+          </AuthSessionProvider>
         </ThemeProvider>
       </body>
     </html>

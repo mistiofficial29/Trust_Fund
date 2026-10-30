@@ -2,6 +2,7 @@
 
 import { Menu } from "lucide-react";
 import Link from "next/link";
+import { signOut, useSession } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -15,7 +16,14 @@ import { cn } from "@/lib/utils";
 export function SiteHeader() {
   const pathname = usePathname();
   const router = useRouter();
+  const { data: session } = useSession();
   const [open, setOpen] = useState(false);
+  const dash =
+    session?.user?.role === "ADMIN"
+      ? "/dashboard/admin"
+      : session?.user?.role === "NGO"
+        ? "/dashboard/ngo"
+        : "/dashboard/donor";
 
   function go(href: string) {
     setOpen(false);
@@ -42,12 +50,25 @@ export function SiteHeader() {
         </nav>
         <div className="hidden items-center gap-2 md:flex">
           <ThemeToggle />
-          <Button variant="ghost" asChild>
-            <Link href="/login">Log in</Link>
-          </Button>
-          <Button asChild>
-            <Link href="/register">Get started</Link>
-          </Button>
+          {session?.user ? (
+            <>
+              <Button variant="ghost" asChild>
+                <Link href={dash}>Dashboard</Link>
+              </Button>
+              <Button variant="outline" type="button" onClick={() => signOut({ callbackUrl: "/" })}>
+                Log out
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="ghost" asChild>
+                <Link href="/login">Log in</Link>
+              </Button>
+              <Button asChild>
+                <Link href="/register">Get started</Link>
+              </Button>
+            </>
+          )}
         </div>
         <div className="flex items-center gap-1 md:hidden">
           <ThemeToggle />
@@ -72,16 +93,25 @@ export function SiteHeader() {
                     {link.label}
                   </button>
                 ))}
-                <button
-                  type="button"
-                  onClick={() => go("/login")}
-                  className="text-left text-base font-medium"
-                >
-                  Log in
-                </button>
-                <Button type="button" className="mt-2" onClick={() => go("/register")}>
-                  Get started
-                </Button>
+                {session?.user ? (
+                  <>
+                    <button type="button" onClick={() => go(dash)} className="text-left text-base font-medium">
+                      Dashboard
+                    </button>
+                    <Button type="button" variant="outline" onClick={() => signOut({ callbackUrl: "/" })}>
+                      Log out
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <button type="button" onClick={() => go("/login")} className="text-left text-base font-medium">
+                      Log in
+                    </button>
+                    <Button type="button" className="mt-2" onClick={() => go("/register")}>
+                      Get started
+                    </Button>
+                  </>
+                )}
               </nav>
             </SheetContent>
           </Sheet>
